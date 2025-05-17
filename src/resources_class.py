@@ -6,7 +6,8 @@ from src.resources import resources_standart, resources_coaxial, resources_utp
 from time import sleep
 import random
 
-FORM_LOAD_DELAY = 0.2  # Затримка
+FORM_LOAD_DELAY = 0.25  # Затримка
+MAX_ATTEMPTS = 3
 
 
 def get_time_range(time_input: str):
@@ -51,15 +52,9 @@ class Resource:
             sleep(FORM_LOAD_DELAY)
         raise Exception(f"❌ Option '{option_text}' not found in select.")
 
-    def fill_form(
-        self,
-        wait,
-        attempts: int = 1,
-        max_attempts: int = 2,
-    ):
-
-        print("--" * 50)
-        print(f"\n📝 Filling form: {self.description}")
+    def fill_form(self, wait, log, attempts: int = 1):
+        log("--" * 40)
+        log(f"\n📝 Filling form: {self.description}")
 
         try:
             add_button = wait.until(
@@ -100,7 +95,7 @@ class Resource:
             quantity_input.clear()
             quantity_input.send_keys(str(self.quantity))
 
-            print("✅ Form fields filled.")
+            log("✅ Form fields filled.")
 
         except Exception as e:
             print("❌ Error filling form fields:", e)
@@ -115,10 +110,10 @@ class Resource:
             print("❌ Clicking 'Отмена'...")
             cancel_button.click()
             sleep(FORM_LOAD_DELAY)
-            attempts += 1
-            if attempts <= max_attempts:
-                print("🔁 Retrying to fill the form...")
-                self.fill_form(wait, attempts + 1, max_attempts)
+            if attempts <= MAX_ATTEMPTS:
+                log("🔁 Retrying to fill the form...")
+                self.fill_form(wait, log, attempts + 1)
+                return
             print("❌ Max attempts reached. Exiting...")
             return
 
@@ -127,7 +122,7 @@ class Resource:
                 EC.element_to_be_clickable((By.XPATH, '//button[text()="Сохранить"]'))
             )
             save_button.click()
-            print("💾 Data saved successfully.")
+            log("💾 Data saved successfully.")
         except Exception as e:
             print("❌ Failed to click 'Сохранить':", e)
         sleep(FORM_LOAD_DELAY)
@@ -146,7 +141,7 @@ class Resources:
         elif type_connect == "2":
             self.add_coaxial_resource()
 
-    def fill_base_options(self, wait, time_connect):
+    def fill_base_options(self, driver, wait, log, time_connect, attempts: int = 1):
         try:
             # Час: вхід/вихід
             if time_connect:
@@ -165,25 +160,25 @@ class Resources:
                     time_out.clear()
                     time_out.send_keys(end_time)
 
-                    print("⏰ Час підключення успішно заповнено.")
+                    log("⏰ Час підключення успішно заповнено.")
                 except Exception as e:
-                    print("❌ Не вдалося заповнити час:", e)
+                    log(f"❌ Не вдалося заповнити час: {e}")
 
             # Тип послуги (Інтернет/ЦТБ)
             if self.type_connect:
-                try:
-                    service_select = wait.until(
-                        EC.presence_of_element_located((By.NAME, "servicePDA"))
-                    )
-                    Select(service_select).select_by_visible_text(
-                        "Инет" if self.type_connect == "1" else "ЦТВ"
-                    )
-                    print(
-                        "🌐 Тип послуги встановлено:",
-                        "Инет" if self.type_connect == "1" else "ЦТВ",
-                    )
-                except Exception as e:
-                    print("❌ Не вдалося вибрати тип послуги:", e)
+                service_elements = driver.find_elements(By.NAME, "servicePDA")
+                if service_elements:
+                    try:
+                        Select(service_elements[0]).select_by_visible_text(
+                            "Инет" if self.type_connect == "1" else "ЦТВ"
+                        )
+                        log(
+                            f"🌐 Тип послуги встановлено: {'Инет' if self.type_connect == '1' else 'ЦТВ'}"
+                        )
+                    except Exception as e:
+                        log(f"❌ Не вдалося вибрати тип послуги: {e}")
+                else:
+                    log("⚠️ Поле 'servicePDA' не знайдено, пропущено.")
 
             # Тип транспорту
             transport = wait.until(
@@ -216,18 +211,24 @@ class Resources:
                 "Виконано підрядною організацією ТОВ 'Сервіс Сістем'"
             )
 
-            print("✅ Основні поля заявки заповнено.")
+            log("✅ Основні поля заявки заповнено.")
 
         except Exception as e:
-            print("❌ Загальна помилка при заповненні форми:", e)
+            log(f"❌ Загальна помилка при заповненні форми: {e}")
+            sleep(FORM_LOAD_DELAY)
+            if attempts <= MAX_ATTEMPTS:
+                self.fill_base_options(driver, wait, log, time_connect, attempts + 1)
+                log("🔁 Retrying to fill base options...")
+            else:
+                print("❌ Max attempts reached. Exiting...")
 
-    def fill_resources(self, wait):
-        try:
-            for resource in self.data:
-                resource.fill_form(wait)
-                sleep(FORM_LOAD_DELAY)
-        except Exception as e:
-            print("❌ Помилка при заповненні ресурсів:", e)
+    # def fill_resources(self, wait):
+    #     try:
+    #         for resource in self.data:
+    #             resource.fill_form(wait)
+    #             sleep(FORM_LOAD_DELAY)
+    #     except Exception as e:
+    #         self.log(f"❌ Помилка при заповненні ресурсів: {e}")
 
     def add_resource(self, resource: Resource):
         self.data.append(resource)
@@ -244,17 +245,17 @@ class Resources:
             )
         )
 
-    def add_sleeve_resource(self, quantity: int = 50):
-        self.data.append(
-            Resource(
-                work_type="Подключение",
-                work_kind="Монтаж",
-                resource_type="Расходный материал",
-                model="Клипса 3",
-                quantity=quantity,
-                description="Clip 3mm for fastening",
-            )
-        )
+    # def add_sleeve_resource(self, quantity: int = 50):
+    #     self.data.append(
+    #         Resource(
+    #             work_type="Подключение",
+    #             work_kind="Монтаж",
+    #             resource_type="Расходный материал",
+    #             model="Клипса 3",
+    #             quantity=quantity,
+    #             description="Clip 3mm for fastening",
+    #         )
+    #     )
 
     def add_sleeve_resource_random(self, quantity: int = 50) -> None:
         """Додає випадковий ресурс для кріплення з заданими ймовірностями.
@@ -264,9 +265,9 @@ class Resources:
         """
         # Створюємо словник для зручного вибору ресурсів
         RESOURCE_OPTIONS = {
-            "Клипса 3": {"chance": 90, "description": "Клипса 3"},
-            "Клипса 5": {"chance": 5, "description": "Клипса 5"},
-            "Стяжка хомут": {"chance": 5, "description": "Стяжка хомут"},
+            "Клипса 3": {"chance": 80, "description": "Клипса 3"},
+            "Клипса 5": {"chance": 10, "description": "Клипса 5"},
+            "Стяжка хомут": {"chance": 10, "description": "Стяжка хомут"},
         }
 
         # Генеруємо випадкове число
