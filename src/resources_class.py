@@ -6,7 +6,7 @@ from src.resources import resources_standart, resources_coaxial, resources_utp
 from time import sleep
 import random
 
-FORM_LOAD_DELAY = 0.25  # Затримка
+FORM_LOAD_DELAY = 0.35  # Затримка
 MAX_ATTEMPTS = 3
 
 

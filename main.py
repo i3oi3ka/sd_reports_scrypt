@@ -160,11 +160,9 @@ class GuiSeleniumApp:
         if (
             not cable_length.isdigit()
             or int(cable_length) <= 0
-            or int(cable_length) >= 45
+            or int(cable_length) > 45
         ):
-            messagebox.showerror(
-                "Помилка", "❗ Метраж кабелю має бути додатнім числом."
-            )
+            messagebox.showerror("Помилка", "❗ Метраж кабелю має бути в межах 1-45.")
             return
 
         def task():
