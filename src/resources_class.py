@@ -132,6 +132,10 @@ class Resources:
     def __init__(self, type_connect: str = None, cable_length: str = None):
         self.data = []
         self.type_connect = type_connect
+
+        if type_connect == "3":
+            return
+
         self.add_ftth_resource(cable_length)
         self.add_standard_resource()
         self.add_sleeve_resource_random(int(cable_length) * 2)
@@ -170,7 +174,7 @@ class Resources:
                 if service_elements:
                     try:
                         Select(service_elements[0]).select_by_visible_text(
-                            "Инет" if self.type_connect == "1" else "ЦТВ"
+                            "Инет" if self.type_connect in ["1", "3"] else "ЦТВ"
                         )
                         log(
                             f"🌐 Тип послуги встановлено: {'Инет' if self.type_connect == '1' else 'ЦТВ'}"

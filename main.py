@@ -26,7 +26,16 @@ class GuiSeleniumApp:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.title("Автозаповнення заявки")
 
+        self.align_right_center(400, 500)
+
         self.setup_gui()
+
+    def align_right_center(self, width=600, height=500):
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = screen_width - width  # притиснути до правого краю
+        y = (screen_height // 2) - (height // 2)  # по центру вертикалі
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
 
     def on_close(self):
         self.stop_flag = True
@@ -55,9 +64,9 @@ class GuiSeleniumApp:
         self.time_entry = tk.Entry(frame)
         self.time_entry.grid(row=0, column=1)
 
-        tk.Label(frame, text="Тип підключення (1 - Інтернет, 2 - ТБ):").grid(
-            row=1, column=0, sticky="e"
-        )
+        tk.Label(
+            frame, text="Тип підключення (1 - Інтернет, 2 - ТБ, 3 - Міграція):"
+        ).grid(row=1, column=0, sticky="e")
         self.type_entry = tk.Entry(frame)
         self.type_entry.grid(row=1, column=1)
 
@@ -69,22 +78,27 @@ class GuiSeleniumApp:
         btn_frame = tk.Frame(self.root)
         btn_frame.pack(pady=5)
 
-        tk.Button(
-            btn_frame, text="🚀 Запустити Chrome", command=self.start_chrome
-        ).pack(side="left", padx=5)
-        tk.Button(
-            btn_frame, text="🔗 Підключитися до драйвера", command=self.connect_driver
-        ).pack(side="left", padx=5)
-        tk.Button(btn_frame, text="📋 Заповнити форму", command=self.fill_form).pack(
-            side="left", padx=5
+        top_row = tk.Frame(btn_frame)
+        top_row.pack()
+        tk.Button(top_row, text="🚀 Chrome", command=self.start_chrome, width=10).pack(
+            side="left", padx=5, pady=2
         )
         tk.Button(
-            btn_frame, text="✋ Зупинити заповнення", command=self.stop_filling
-        ).pack(side="left", padx=5)
+            top_row, text="🔗 Connect", command=self.connect_driver, width=10
+        ).pack(side="left", padx=5, pady=2)
+        tk.Button(top_row, text="📋 Fill", command=self.fill_form, width=10).pack(
+            side="left", padx=5, pady=2
+        )
 
-        tk.Button(btn_frame, text="🧹", command=self.clear_console).pack(
-            side="left", padx=5
+        # --- Другий ряд кнопок ---
+        bottom_row = tk.Frame(btn_frame)
+        bottom_row.pack()
+        tk.Button(bottom_row, text="✋ Stop", command=self.stop_filling, width=10).pack(
+            side="left", padx=5, pady=2
         )
+        tk.Button(
+            bottom_row, text="🧹 Clear", command=self.clear_console, width=10
+        ).pack(side="left", padx=5, pady=2)
 
         # tk.Button(btn_frame, text="🛑 Зупинити драйвер", command=self.stop_driver).pack(
         #     side="left", padx=5
@@ -151,13 +165,14 @@ class GuiSeleniumApp:
             )
             return
 
-        if type_connect not in ("1", "2", ""):
+        if type_connect not in ("1", "2", "3"):
             messagebox.showerror(
-                "Помилка", "❗ Тип підключення має бути 1 (Інтернет) або 2 (ТБ)."
+                "Помилка",
+                "❗ Тип підключення має бути 1 (Інтернет), 2 (ТБ) або 3 (міграція).",
             )
             return
 
-        if (
+        if type_connect != "3" and (
             not cable_length.isdigit()
             or int(cable_length) <= 0
             or int(cable_length) > 45
