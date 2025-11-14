@@ -144,6 +144,9 @@ class Resources:
             self.add_utp_resource()
         elif type_connect == "2":
             self.add_coaxial_resource()
+        elif type_connect == "4":
+            self.add_utp_resource()
+            self.add_coaxial_resource()
 
     def fill_base_options(self, driver, wait, log, time_connect, attempts: int = 1):
         try:
@@ -173,12 +176,17 @@ class Resources:
                 service_elements = driver.find_elements(By.NAME, "servicePDA")
                 if service_elements:
                     try:
-                        Select(service_elements[0]).select_by_visible_text(
-                            "Инет" if self.type_connect in ["1", "3"] else "ЦТВ"
-                        )
-                        log(
-                            f"🌐 Тип послуги встановлено: {'Инет' if self.type_connect == '1' else 'ЦТВ'}"
-                        )
+                        if self.type_connect in ["1", "3"]:
+                            Select(service_elements[0]).select_by_visible_text("Инет")
+                            log("🌐 Тип послуги встановлено: Инет")
+                        elif self.type_connect == "2":
+                            Select(service_elements[0]).select_by_visible_text("ЦТВ")
+                            log("🌐 Тип послуги встановлено: ЦТВ")
+                        elif self.type_connect == "4":
+                            Select(service_elements[0]).select_by_visible_text(
+                                "ЦТВ + Инет"
+                            )
+                            log("🌐 Тип послуги встановлено: ЦТВ + Инет")
                     except Exception as e:
                         log(f"❌ Не вдалося вибрати тип послуги: {e}")
                 else:

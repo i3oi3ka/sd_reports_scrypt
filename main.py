@@ -64,9 +64,9 @@ class GuiSeleniumApp:
         self.time_entry = tk.Entry(frame)
         self.time_entry.grid(row=0, column=1)
 
-        tk.Label(
-            frame, text="Тип підключення (1 - Інтернет, 2 - ТБ, 3 - Міграція):"
-        ).grid(row=1, column=0, sticky="e")
+        tk.Label(frame, text="Тип (1 - Інет, 2 - ТБ, 3 - Міграція, 4 - Bandl):").grid(
+            row=1, column=0, sticky="e"
+        )
         self.type_entry = tk.Entry(frame)
         self.type_entry.grid(row=1, column=1)
 
@@ -165,7 +165,7 @@ class GuiSeleniumApp:
             )
             return
 
-        if type_connect not in ("1", "2", "3"):
+        if type_connect not in ("1", "2", "3", "4"):
             messagebox.showerror(
                 "Помилка",
                 "❗ Тип підключення має бути 1 (Інтернет), 2 (ТБ) або 3 (міграція).",
