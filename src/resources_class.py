@@ -192,6 +192,20 @@ class Resources:
                 else:
                     log("⚠️ Поле 'servicePDA' не знайдено, пропущено.")
 
+            type_element = driver.find_elements(By.NAME, "typePDA")
+            if type_element:
+                try:
+                    Select(type_element[0]).select_by_visible_text("Подключение услуги")
+                    log("🔌 Тип заявки встановлено: Подключение услуги")
+
+                    Select(
+                        wait.until(
+                            EC.presence_of_element_located((By.NAME, "typeOfFaultPDA"))
+                        )
+                    ).select_by_visible_text("Подключил Интернет")
+                except Exception as e:
+                    log(f"❌ Не вдалося вибрати тип заявки: {e}")
+
             # Тип транспорту
             transport = wait.until(
                 EC.presence_of_element_located((By.NAME, "routeNumber2"))

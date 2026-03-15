@@ -1,4 +1,5 @@
 import re
+import time
 import subprocess
 import threading
 import tkinter as tk
@@ -27,14 +28,13 @@ class GuiSeleniumApp:
         self.root.title("Автозаповнення заявки")
 
         self.align_right_center(400, 500)
-
         self.setup_gui()
 
     def align_right_center(self, width=600, height=500):
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        x = screen_width - width  # притиснути до правого краю
-        y = (screen_height // 2) - (height // 2)  # по центру вертикалі
+        x = screen_width - width
+        y = (screen_height // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
     def on_close(self):
@@ -64,7 +64,7 @@ class GuiSeleniumApp:
         self.time_entry = tk.Entry(frame)
         self.time_entry.grid(row=0, column=1)
 
-        tk.Label(frame, text="Тип (1 - Інет, 2 - ТБ, 3 - Міграція, 4 - Bandl):").grid(
+        tk.Label(frame, text="Тип (1-Інет, 2-ТБ, 3-Мігр, 4-Bandl):").grid(
             row=1, column=0, sticky="e"
         )
         self.type_entry = tk.Entry(frame)
@@ -80,29 +80,30 @@ class GuiSeleniumApp:
 
         top_row = tk.Frame(btn_frame)
         top_row.pack()
+
         tk.Button(top_row, text="🚀 Chrome", command=self.start_chrome, width=10).pack(
             side="left", padx=5, pady=2
         )
-        tk.Button(
+
+        # --- ЗМІНА: Збережено посилання на кнопку для зміни кольору ---
+        self.connect_btn = tk.Button(
             top_row, text="🔗 Connect", command=self.connect_driver, width=10
-        ).pack(side="left", padx=5, pady=2)
+        )
+        self.connect_btn.pack(side="left", padx=5, pady=2)
+
         tk.Button(top_row, text="📋 Fill", command=self.fill_form, width=10).pack(
             side="left", padx=5, pady=2
         )
 
-        # --- Другий ряд кнопок ---
         bottom_row = tk.Frame(btn_frame)
         bottom_row.pack()
+
         tk.Button(bottom_row, text="✋ Stop", command=self.stop_filling, width=10).pack(
             side="left", padx=5, pady=2
         )
         tk.Button(
             bottom_row, text="🧹 Clear", command=self.clear_console, width=10
         ).pack(side="left", padx=5, pady=2)
-
-        # tk.Button(btn_frame, text="🛑 Зупинити драйвер", command=self.stop_driver).pack(
-        #     side="left", padx=5
-        # )
 
         self.console = scrolledtext.ScrolledText(self.root, height=20, state="disabled")
         self.console.pack(fill="both", padx=10, pady=10)
@@ -119,38 +120,75 @@ class GuiSeleniumApp:
                 ],
                 shell=True,
             )
-            self.log("🚀 Chrome запущено в режимі налагодження.")
+            self.log("🚀 Chrome запущено. Зачекайте завантаження сторінки.")
         except Exception as e:
             self.log(f"❌ Помилка запуску Chrome: {e}")
 
+    # --- ЗМІНА: Повністю переписаний метод connect_driver ---
     def connect_driver(self):
+        self.connect_btn.configure(bg="SystemButtonFace")  # Скидаємо колір
         try:
             options = Options()
             options.debugger_address = f"127.0.0.1:{REMOTE_DEBUGGING_PORT}"
+
+            self.log("🔍 Спроба підключення до браузера...")
             self.driver = webdriver.Chrome(options=options)
-            self.wait = WebDriverWait(self.driver, 5)
-            self.log("🔗 Підключено до драйвера.")
+
+            target_found = False
+            max_attempts = 5
+
+            for attempt in range(max_attempts):
+                self.log(f"🔎 Пошук вкладки (спроба {attempt + 1})...")
+                handles = self.driver.window_handles
+
+                for handle in handles:
+                    try:
+                        self.driver.switch_to.window(handle)
+                        url = self.driver.current_url.lower()
+                        title = self.driver.title.lower()
+
+                        if "pdamaster" in url or "интерфейс мастера" in title:
+                            self.log(f"✅ Знайдено: {self.driver.title}")
+                            target_found = True
+                            break
+                    except:
+                        continue
+
+                if target_found:
+                    break
+                time.sleep(1)
+
+            if target_found:
+                self.wait = WebDriverWait(self.driver, 5)
+                self.connect_btn.configure(bg="#90EE90")  # ЗЕЛЕНИЙ КОЛІР
+                self.log("🔗 Драйвер успішно підключено.")
+            else:
+                self.log("⚠️ Вкладку не знайдено. Відкрийте pdamaster вручну.")
+                self.connect_btn.configure(bg="#FFCCCB")  # ЧЕРВОНУВАТИЙ
+                self.driver = None
+
         except Exception as e:
-            self.log(f"❌ Не вдалося підключитися до драйвера: {e}")
+            self.log(f"❌ Помилка: Переконайтеся, що Chrome запущено кнопкою вище.")
+            self.connect_btn.configure(bg="#FFCCCB")
+            self.driver = None
 
     def stop_driver(self):
         if self.driver:
             try:
                 self.driver.quit()
                 self.driver = None
+                self.connect_btn.configure(bg="SystemButtonFace")
                 self.log("🛑 Драйвер зупинено.")
             except Exception as e:
-                self.log(f"❌ Помилка зупинки драйвера: {e}")
-        else:
-            self.log("ℹ️ Драйвер ще не запущено або вже зупинено.")
+                self.log(f"❌ Помилка зупинки: {e}")
 
     def stop_filling(self):
         self.stop_flag = True
-        self.log("✋ Заповнення форми перервано користувачем.")
+        self.log("✋ Заповнення перервано.")
 
     def fill_form(self):
         if not self.driver:
-            self.log("⚠️ Спочатку підключіться до драйвера.")
+            self.log("⚠️ Спочатку натисніть Connect.")
             return
 
         time_connect = self.time_entry.get().strip()
@@ -158,26 +196,13 @@ class GuiSeleniumApp:
         cable_length = self.cable_entry.get().strip()
         self.stop_flag = False
 
+        # Валідація даних
         if not time_connect or not re.match(r"^\d{1,2}[.,]\d{2}$", time_connect):
-            messagebox.showerror(
-                "Помилка",
-                "❗ Введіть час підключення у форматі год:хв (наприклад, 14.30 або 14,30).",
-            )
+            messagebox.showerror("Помилка", "❗ Формат часу: 14.30")
             return
 
         if type_connect not in ("1", "2", "3", "4"):
-            messagebox.showerror(
-                "Помилка",
-                "❗ Тип підключення має бути 1 (Інтернет), 2 (ТБ) або 3 (міграція).",
-            )
-            return
-
-        if type_connect != "3" and (
-            not cable_length.isdigit()
-            or int(cable_length) <= 0
-            or int(cable_length) > 45
-        ):
-            messagebox.showerror("Помилка", "❗ Метраж кабелю має бути в межах 1-45.")
+            messagebox.showerror("Помилка", "❗ Тип: 1, 2, 3 або 4")
             return
 
         def task():
@@ -190,15 +215,13 @@ class GuiSeleniumApp:
                     if self.stop_flag:
                         break
                     resource.fill_form(self.wait, self.log)
-                if not self.stop_flag:
-                    self.log("✅ Форму заповнено успішно.")
-                else:
-                    self.log("⚠️ Заповнення зупинено до завершення.")
-            except Exception as e:
-                self.log(f"❌ Помилка при заповненні форми: {e}")
 
-        self.form_filling_thread = threading.Thread(target=task)
-        self.form_filling_thread.start()
+                if not self.stop_flag:
+                    self.log("✅ Готово!")
+            except Exception as e:
+                self.log(f"❌ Помилка: {e}")
+
+        threading.Thread(target=task).start()
 
 
 if __name__ == "__main__":
